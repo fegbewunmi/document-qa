@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import "./App.css";
 
-const API_URL = "http://localhost:3001/query";
+const API_BASE = "http://localhost:3001";
 
 interface Chunk {
   text: string;
@@ -20,12 +20,49 @@ function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [uploadedDoc, setUploadedDoc] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== "application/pdf") {
+      setUploadError("Only PDF files are supported");
+      return;
+    }
+
+    setUploading(true);
+    setUploadError(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch(`${API_BASE}/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+      const data = await res.json();
+      setUploadedDoc(file.name);
+      setMessages([]);
+      console.log(data.message);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const handleSubmit = async () => {
     const question = input.trim();
@@ -37,7 +74,7 @@ function App() {
     setLoading(true);
 
     try {
-      const res = await fetch(API_URL, {
+      const res = await fetch(`${API_BASE}/query`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question }),
@@ -85,13 +122,56 @@ function App() {
         <div className="tech-badge">pgvector · OpenAI · Express</div>
       </header>
 
+      <div className="upload-bar">
+        <div className="upload-bar-inner">
+          <div className="upload-left">
+            {uploadedDoc ? (
+              <span className="doc-active">
+                <span className="doc-dot" />
+                {uploadedDoc}
+              </span>
+            ) : (
+              <span className="doc-none">No document loaded</span>
+            )}
+            {uploadError && <span className="upload-err">{uploadError}</span>}
+          </div>
+          <button
+            className="upload-btn"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+          >
+            {uploading
+              ? "Ingesting..."
+              : uploadedDoc
+                ? "Replace PDF"
+                : "Upload PDF"}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/pdf"
+            onChange={handleFileChange}
+            style={{ display: "none" }}
+          />
+        </div>
+      </div>
+
       <main className="feed">
         {messages.length === 0 && !loading && (
           <div className="empty">
-            <p className="empty-label">No queries yet</p>
-            <p className="empty-sub">
-              Type a question below to search your document
-            </p>
+            {uploadedDoc ? (
+              <>
+                <p className="empty-label">Ready to query</p>
+                <p className="empty-sub">Ask anything about {uploadedDoc}</p>
+              </>
+            ) : (
+              <>
+                <p className="empty-label">Upload a PDF to get started</p>
+                <p className="empty-sub">
+                  Your document will be indexed and ready to query
+                </p>
+              </>
+            )}
           </div>
         )}
 
@@ -130,7 +210,7 @@ function App() {
                       </span>
                       {chunk.metadata?.source && (
                         <span className="chunk-src">
-                          {String(chunk.metadata.source)}
+                          {chunk.metadata.source}
                         </span>
                       )}
                     </div>
@@ -163,17 +243,21 @@ function App() {
           <textarea
             ref={textareaRef}
             className="composer-input"
-            placeholder="Ask anything about your document..."
+            placeholder={
+              uploadedDoc
+                ? "Ask anything about your document..."
+                : "Upload a PDF first..."
+            }
             value={input}
             onChange={handleInput}
             onKeyDown={handleKeyDown}
             rows={1}
-            disabled={loading}
+            disabled={loading || !uploadedDoc}
           />
           <button
             className="composer-btn"
             onClick={handleSubmit}
-            disabled={!input.trim() || loading}
+            disabled={!input.trim() || loading || !uploadedDoc}
           >
             Send
           </button>
