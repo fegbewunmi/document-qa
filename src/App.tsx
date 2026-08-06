@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import "./App.css";
+import { toMatchPercent } from "./lib/matchPercent";
 
 const API_BASE = "http://localhost:3001";
 
@@ -14,6 +15,8 @@ interface Message {
   question?: string;
   chunks?: Chunk[];
   error?: string;
+  answer?: string;
+  answerable?: boolean;
 }
 
 function App() {
@@ -84,7 +87,12 @@ function App() {
       const data = await res.json();
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", chunks: data.chunks },
+        {
+          role: "assistant",
+          chunks: data.chunks,
+          answer: data.answer,
+          answerable: data.answerable,
+        },
       ]);
     } catch (err) {
       setMessages((prev) => [
@@ -191,6 +199,26 @@ function App() {
               </div>
             )}
 
+            {msg.role === "assistant" &&
+              !msg.error &&
+              msg.answerable === true && (
+                <div className="answer-block">
+                  <span className="tag tag--result">ANSWER</span>
+                  <p className="answer-text">{msg.answer}</p>
+                </div>
+              )}
+
+            {msg.role === "assistant" &&
+              !msg.error &&
+              msg.answerable === false && (
+                <div className="answer-block">
+                  <span className="tag tag--warn">INSUFFICIENT EVIDENCE</span>
+                  <p className="answer-text answer-text--muted">
+                    {msg.answer}
+                  </p>
+                </div>
+              )}
+
             {msg.role === "assistant" && msg.chunks && (
               <div className="results-block">
                 <div className="results-bar">
@@ -206,7 +234,7 @@ function App() {
                         {String(j + 1).padStart(2, "0")}
                       </span>
                       <span className="chunk-score">
-                        {Math.round(chunk.score * 100)}% match
+                        {toMatchPercent(chunk.score)}% match
                       </span>
                       {chunk.metadata?.source && (
                         <span className="chunk-src">

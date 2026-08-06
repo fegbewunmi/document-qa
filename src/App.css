@@ -19,6 +19,8 @@
   --text-dim: #3a3a3a;
   --error: #ef4444;
   --error-dim: rgba(239, 68, 68, 0.1);
+  --warn: #eab308;
+  --warn-dim: rgba(234, 179, 8, 0.1);
   --font-display: 'Syne', sans-serif;
   --font-mono: 'DM Mono', monospace;
 }
@@ -156,6 +158,12 @@ html, body, #root {
   border: 1px solid var(--error);
 }
 
+.tag--warn {
+  background: var(--warn-dim);
+  color: var(--warn);
+  border: 1px solid var(--warn);
+}
+
 /* ── USER BLOCK ── */
 .user-block {
   display: flex;
@@ -181,6 +189,25 @@ html, body, #root {
 .error-block p {
   font-size: 13px;
   color: var(--error);
+}
+
+/* ── ANSWER ── */
+.answer-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.answer-text {
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--text);
+  max-width: 680px;
+}
+
+.answer-text--muted {
+  color: var(--text-muted);
 }
 
 /* ── RESULTS ── */
