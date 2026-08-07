@@ -1,6 +1,6 @@
-# Document Q&A — RAG Pipeline
+# Document Q&A - RAG Pipeline
 
-A full-stack document question-answering app. Upload any PDF and query it using natural language. Relevant passages are retrieved using vector similarity search, then synthesized into a grounded natural-language answer with citations back to the source passages — or an explicit refusal if the document doesn't contain the answer.
+A full-stack document question-answering app. Upload any PDF and query it using natural language. Relevant passages are retrieved using vector similarity search, then synthesized into a grounded natural-language answer with citations back to the source passages - or an explicit refusal if the document doesn't contain the answer.
 
 **Stack:** React · TypeScript · Node.js · Express · PostgreSQL · pgvector · OpenAI · LangChain
 
@@ -11,10 +11,10 @@ A full-stack document question-answering app. Upload any PDF and query it using 
 1. User uploads a PDF via the UI, which replaces any previously indexed document
 2. The backend chunks the document and generates embeddings using OpenAI's `text-embedding-3-small` model
 3. Embeddings are stored in PostgreSQL using the pgvector extension, and a full-text search index is built alongside it
-4. When a question is submitted, the backend runs vector similarity search *and* Postgres full-text search in parallel, then fuses the two ranked lists with Reciprocal Rank Fusion — catching exact-match queries (error codes, SKUs) that vector search alone can miss
-5. The fused top 10 candidates are re-scored by an LLM reranker and narrowed to the 4 most relevant — catching cases where superficially similar passages outrank the one that actually answers the question
+4. When a question is submitted, the backend runs vector similarity search *and* Postgres full-text search in parallel, then fuses the two ranked lists with Reciprocal Rank Fusion - catching exact-match queries (error codes, SKUs) that vector search alone can miss
+5. The fused top 10 candidates are re-scored by an LLM reranker and narrowed to the 4 most relevant - catching cases where superficially similar passages outrank the one that actually answers the question
 6. The top 4 reranked passages are returned with match scores
-7. If a passage is relevant enough, an LLM synthesizes a natural-language answer from those passages, with inline citations back to the specific passage(s) it drew from — otherwise the app says so explicitly rather than guessing
+7. If a passage is relevant enough, an LLM synthesizes a natural-language answer from those passages, with inline citations back to the specific passage(s) it drew from - otherwise the app says so explicitly rather than guessing
 
 See [docs/DESIGN-DOC.md](docs/DESIGN-DOC.md) for the full pipeline architecture, and [docs/ARCHITECTURE-RATIONALE.md](docs/ARCHITECTURE-RATIONALE.md) for the reasoning behind each decision.
 
@@ -149,20 +149,20 @@ Replaces any previously indexed document (see ADR-001).
 }
 ```
 
-`chunks[].score` is cosine **distance** from pgvector (lower = better match) — not a similarity percentage. The frontend converts it for display (`src/lib/matchPercent.ts`); don't read it as "score% match" directly. `citedChunkIndices` is 1-based, indexing into `chunks` in the order returned. If the document doesn't contain enough information to answer, `answerable` is `false` and `citedChunkIndices` is empty — the app declines rather than guessing.
+`chunks[].score` is cosine **distance** from pgvector (lower = better match) - not a similarity percentage. The frontend converts it for display (`src/lib/matchPercent.ts`); don't read it as "score% match" directly. `citedChunkIndices` is 1-based, indexing into `chunks` in the order returned. If the document doesn't contain enough information to answer, `answerable` is `false` and `citedChunkIndices` is empty — the app declines rather than guessing.
 
 ---
 
 ## Key Technical Decisions
 
-- **pgvector over a hosted vector DB** — keeps the stack simple and colocated with relational data, which mirrors real production setups
-- **Chunk overlap (100 tokens)** — preserves context across chunk boundaries to improve retrieval quality
+- **pgvector over a hosted vector DB** - keeps the stack simple and colocated with relational data, which mirrors real production setups
+- **Chunk overlap (100 tokens)** - preserves context across chunk boundaries to improve retrieval quality
 - **On-the-fly ingestion** — documents are embedded and stored at upload time, so queries are fast and stateless
 - **`text-embedding-3-small`** — balances cost and performance for document retrieval tasks
 - **Replace, not accumulate, on upload** — a new upload replaces the previously indexed document rather than blending both into the same search space (ADR-001)
 - **Structured output for answer synthesis** — the model returns `{ answer, citedChunkIndices, answerable }` via a Zod schema rather than free text, so citations and refusals are machine-checkable, not string-parsed (ADR-003)
 - **Refusal on low-confidence retrieval** — a similarity-threshold guard plus an explicit prompt instruction both defend against hallucinating an answer when the document doesn't contain one (ADR-004)
-- **Hybrid retrieval via Reciprocal Rank Fusion** — vector search and Postgres full-text search are fused by rank rather than blended by a hand-picked weight, avoiding the cross-scale normalization problem of combining cosine similarity with text-search rank (ADR-011)
+- **Hybrid retrieval via Reciprocal Rank Fusion** - vector search and Postgres full-text search are fused by rank rather than blended by a hand-picked weight, avoiding the cross-scale normalization problem of combining cosine similarity with text-search rank (ADR-011)
 - **LLM reranking over a widened candidate set** — retrieval fuses the top 10 candidates, not just 4, so a per-candidate LLM relevance pass has real headroom to promote a chunk first-pass ranking missed entirely, not just reorder an already-narrow set (ADR-014, ADR-016)
 
 ## Documentation
